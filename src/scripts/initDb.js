@@ -19,6 +19,7 @@ async function initDatabase({ seed: executarSeed = false, log = console.log } = 
     port: env.db.port,
     user: env.db.user,
     password: env.db.password,
+    ssl: env.db.ssl,
     charset: 'utf8mb4',
   });
 

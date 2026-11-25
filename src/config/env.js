@@ -26,6 +26,8 @@ module.exports = {
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME,
     connectionLimit: Number(process.env.DB_CONNECTION_LIMIT) || 10,
+    // Bancos MySQL na nuvem (ex.: Aiven) exigem conexão criptografada.
+    ssl: bool(process.env.DB_SSL, false) ? { rejectUnauthorized: false } : undefined,
     autoInit: bool(process.env.DB_AUTO_INIT, false),
     autoSeed: bool(process.env.DB_AUTO_SEED, false),
   },

@@ -1,0 +1,79 @@
+name: CI/CD - API
+
+# CI em todo push e pull request para a main.
+# CD (deploy no Render) somente em push na main e somente se a CI passar.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Evita dois deploys simultâneos da mesma branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    name: CI - testes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Verificar sintaxe do servidor
+        run: node --check server.js
+
+      - name: Executar testes (Jest + Supertest, banco mockado)
+        run: npm test
+
+  deploy:
+    name: CD - deploy no Render
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.API_URL }}
+    steps:
+      - name: Disparar deploy (Render Deploy Hook)
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "::error::Secret RENDER_DEPLOY_HOOK_URL não configurado."
+            exit 1
+          fi
+          curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
+
+      - name: Aguardar a nova versão no ar (health check)
+        env:
+          API_URL: ${{ vars.API_URL }}
+          EXPECTED: ${{ github.sha }}
+        run: |
+          if [ -z "$API_URL" ]; then
+            echo "::error::Variable API_URL não configurada."
+            exit 1
+          fi
+          # O Render leva alguns minutos para buildar e trocar a versão.
+          for i in $(seq 1 40); do
+            COMMIT=$(curl -fsS "$API_URL/health" | sed -n 's/.*"commit":"\([^"]*\)".*/\1/p' || true)
+            echo "Tentativa $i: commit publicado = ${COMMIT:-indisponível}"
+            if [ "$COMMIT" = "$EXPECTED" ]; then
+              echo "Deploy confirmado: $API_URL está rodando o commit $EXPECTED"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::A API não publicou o commit $EXPECTED em 10 minutos."
+          exit 1

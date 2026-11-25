@@ -11,6 +11,7 @@ const pool = mysql.createPool({
   user: env.db.user,
   password: env.db.password,
   database: env.db.database,
+  ssl: env.db.ssl,
   connectionLimit: env.db.connectionLimit,
   waitForConnections: true,
   charset: 'utf8mb4', // necessário para os ENUMs acentuados ('Fácil', 'Médio', 'Difícil')

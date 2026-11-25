@@ -33,6 +33,12 @@ app.get('/', (req, res) =>
   res.json({ nome: 'Fatec Mission API', versao: '1.0.0', documentacao: '/api-docs' })
 );
 
+// Health check usado pela pipeline de CD: confirma que a versão publicada é o commit esperado.
+// RENDER_GIT_COMMIT é definida automaticamente pelo Render em cada deploy.
+app.get('/health', (req, res) =>
+  res.json({ status: 'ok', commit: process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || 'local' })
+);
+
 app.use(routes);
 
 app.use(notFound);

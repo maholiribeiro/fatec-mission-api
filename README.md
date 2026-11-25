@@ -251,7 +251,7 @@ curl -X POST http://localhost:3000/missoes/5/quiz/respostas -H "Authorization: B
 npm test
 ```
 
-São 132 testes em Jest e Supertest. Nenhum deles precisa de MySQL: a camada de dados é mockada. Eles cobrem:
+São 133 testes em Jest e Supertest. Nenhum deles precisa de MySQL: a camada de dados é mockada. Eles cobrem:
 - **Quiz:**
   - pontuação proporcional, incluindo o exemplo 150 XP / 4 perguntas = 37,5 e os arredondamentos;
   - exatamente uma alternativa correta;
@@ -270,3 +270,17 @@ São 132 testes em Jest e Supertest. Nenhum deles precisa de MySQL: a camada de 
 - **Desbloqueio de conquistas:** interpretação dos requisitos, desbloqueio seletivo e verificação feita depois de atualizar o XP.
 - **QR Code:** código correto, código incorreto, código ausente e ocultação do código para estudantes.
 - **HTTP:** login, cadastro (hash e role forçada), 401, 403, 400, 404, JSON malformado e cobertura do Swagger.
+- **Health check:** `GET /health` responde `status` e o commit publicado.
+
+## Integração e entrega contínua (CI/CD)
+
+A pipeline fica em `.github/workflows/ci-cd.yml` e roda no GitHub Actions.
+
+| Evento | CI (testes) | CD (deploy) |
+|---|---|---|
+| `push` na `main` | Sim | Sim, somente se a CI passar |
+| `pull_request` para a `main` | Sim | Não (job aparece como *skipped*) |
+
+- **CI:** checkout, Node.js 22, `npm ci`, `node --check server.js` e `npm test`.
+- **CD:** chama o *Deploy Hook* do Render (secret `RENDER_DEPLOY_HOOK_URL`) e consulta `GET /health` até a API publicada responder com o mesmo commit do push (variable `API_URL`). O Auto-Deploy do Render fica desligado, então só a pipeline publica.
+- **Produção:** https://fatec-mission-api-6yv1.onrender.com (Swagger em `/api-docs`). Banco MySQL no TiDB Cloud, com `DB_SSL=true`.
